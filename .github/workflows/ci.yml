@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  IMAGE_NAME: akupheaws/juice-shop
+  IMAGE_NAME: bandingj/juice-shop
   IMAGE_TAG: tagname
 
 jobs:
@@ -66,13 +66,6 @@ jobs:
             detect --source=/repo --verbose --redact --exit-code 0 \
             --report-format json --report-path /repo/gitleaks.json
 
-      - name: Upload Gitleaks report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gitleaks-report
-          path: gitleaks.json
-
   njsscan:
     name: NJS scan
     runs-on: ubuntu-24.04
@@ -94,13 +87,6 @@ jobs:
           njsscan . || true
           njsscan . --defectdojo -o njsscan.json || true
 
-      - name: Upload njsscan report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: njsscan-report
-          path: njsscan.json
-
   semgrep:
     name: Semgrep scan
     runs-on: ubuntu-24.04
@@ -120,13 +106,6 @@ jobs:
             --metrics=off \
             --verbose \
             --json-output=semgrep.json || true
-
-      - name: Upload Semgrep report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: semgrep-report
-          path: semgrep.json
 
   retirejs:
     name: Retire.js scan
@@ -153,55 +132,6 @@ jobs:
       - name: Run Retire.js
         run: |
           retire --path . --outputformat json --outputpath retirejs.json --exitwith 0
-
-      - name: Upload Retire.js report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: retirejs-report
-          path: retirejs.json
-
-  defectdojo:
-    name: Upload reports to DefectDojo
-    needs: [gitleaks, njsscan, semgrep, retirejs]
-    if: always()
-    runs-on: ubuntu-24.04
-    env:
-      DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-
-      - name: Download scan reports
-        uses: actions/download-artifact@v4
-        with:
-          pattern: '*-report'
-          merge-multiple: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install requests
-        run: pip install requests
-
-      - name: Upload Gitleaks report
-        run: python upload-report.py gitleaks.json "Gitleaks Scan"
-        continue-on-error: true
-
-      - name: Upload njsscan report
-        run: python upload-report.py njsscan.json "Generic Findings Import"
-        continue-on-error: true
-
-      - name: Upload Semgrep report
-        run: python upload-report.py semgrep.json "Semgrep JSON Report"
-        continue-on-error: true
-
-      - name: Upload Retire.js report
-        run: python upload-report.py retirejs.json "Retire.js Scan"
-        continue-on-error: true
 
   build:
     name: Build and publish Docker image
